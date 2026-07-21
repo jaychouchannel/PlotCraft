@@ -11,6 +11,7 @@ from ..models import GenerateRequest, GenerateResponse, RenderRequest
 from ..prompts import DEFAULT_SYSTEM_PROMPT
 from ..providers.factory import make_provider
 from ..providers.openai_compat import extract_code_block
+from ..svg_sanitize import sanitize_svg
 
 router = APIRouter(prefix="/api/generate", tags=["generate"])
 
