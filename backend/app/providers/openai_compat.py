@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 
+from ..safe_logging import redact
 from .base import Provider
 
 
@@ -35,12 +36,15 @@ class OpenAICompatProvider(Provider):
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(url, headers=headers, json=body)
             if resp.status_code >= 400:
-                raise RuntimeError(f"LLM 调用失败 {resp.status_code}: {resp.text}")
+                # 把 api_key 从响应文本中脱敏（部分服务会把 header 回显）
+                body_text = redact(resp.text, self.api_key)
+                raise RuntimeError(f"LLM 调用失败 {resp.status_code}: {body_text}")
             payload = resp.json()
         try:
             return payload["choices"][0]["message"]["content"]
         except (KeyError, IndexError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"无法解析 LLM 响应: {payload}") from exc
+            payload_str = redact(str(payload), self.api_key)
+            raise RuntimeError(f"无法解析 LLM 响应: {payload_str}") from exc
 
 
 def extract_code_block(text: str) -> str:
