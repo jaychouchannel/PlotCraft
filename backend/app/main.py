@@ -42,7 +42,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 个人本地使用；生产部署请改为前端域名
+    allow_origins=settings.cors_origins.split(",") if settings.cors_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
