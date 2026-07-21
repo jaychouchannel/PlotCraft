@@ -218,6 +218,19 @@ npm run dev
 
 ---
 
+## 效果演示
+
+下面三張圖全部由 PlotCraft 產生——自然語言輸入，LLM 產生 matplotlib 程式碼，後端沙箱執行渲染，匯出 SVG（此處為 GitHub 預覽重新柵格化）。
+
+<p align="center">
+  <img src="png/5a48d1507b4c2021da7f255f5f191d5b.png" width="32%" alt="示例圖1" />
+  <img src="png/808aa00d130c44832a83f8700828c46e.png" width="32%" alt="示例圖2" />
+  <img src="png/5564f828049e55775e89289333cddf9b.png" width="32%" alt="示例圖3" />
+</p>
+<p align="center"><em>左：多系列折線 + 誤差棒 · 中：分組長條 + 顯著性標註 · 右：散點 + 線性迴歸 + 95% 信賴區間</em></p>
+
+---
+
 ## 內建範本清單
 
 | # | 類別 | 範本名 | 典型場景 |

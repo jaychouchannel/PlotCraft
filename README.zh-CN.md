@@ -218,6 +218,19 @@ npm run dev
 
 ---
 
+## 效果演示
+
+下面三张图全部由 PlotCraft 生成——自然语言输入，LLM 生成 matplotlib 代码，后端沙箱执行渲染，导出 SVG（此处为 GitHub 预览重新栅格化）。
+
+<p align="center">
+  <img src="png/5a48d1507b4c2021da7f255f5f191d5b.png" width="32%" alt="示例图1" />
+  <img src="png/808aa00d130c44832a83f8700828c46e.png" width="32%" alt="示例图2" />
+  <img src="png/5564f828049e55775e89289333cddf9b.png" width="32%" alt="示例图3" />
+</p>
+<p align="center"><em>左：多系列折线 + 误差棒 · 中：分组柱状 + 显著性标注 · 右：散点 + 线性回归 + 95% 置信区间</em></p>
+
+---
+
 ## 内置模板清单
 
 | # | 类别 | 模板名 | 典型场景 |
