@@ -14,6 +14,8 @@
 
 ## 这是什么
 
+<img src="png/5a48d1507b4c2021da7f255f5f191d5b.png" width="32%" alt="示例图1" />
+
 科研绘图长期是论文写作里最磨人的环节：
 
 - GraphPad / Origin 选项繁杂，鼠标点十几层菜单才出一张图；
@@ -223,7 +225,6 @@ npm run dev
 下面三张图全部由 PlotCraft 生成——自然语言输入，LLM 生成 matplotlib 代码，后端沙箱执行渲染，导出 SVG（此处为 GitHub 预览重新栅格化）。
 
 <p align="center">
-  <img src="png/5a48d1507b4c2021da7f255f5f191d5b.png" width="32%" alt="示例图1" />
   <img src="png/808aa00d130c44832a83f8700828c46e.png" width="32%" alt="示例图2" />
   <img src="png/5564f828049e55775e89289333cddf9b.png" width="32%" alt="示例图3" />
 </p>
