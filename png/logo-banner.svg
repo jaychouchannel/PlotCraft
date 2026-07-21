@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320">
+  <!-- Banner 横版：左侧 logo 图标 + 右侧艺术字标题 + 副标题 -->
+  <!-- 透明背景，纯白元素，可贴深色背景 -->
+
+  <!-- 左侧 logo 图标：折线+误差棒+数据点，置于一个圆形描边里 -->
+  <g transform="translate(40,40)">
+    <circle cx="120" cy="120" r="118" fill="none" stroke="#ffffff" stroke-opacity="0.25" stroke-width="1.5"/>
+    <circle cx="120" cy="120" r="108" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="0.8" stroke-dasharray="2 4"/>
+
+    <!-- 折线主线 -->
+    <polyline points="50,180 80,160 110,165 140,120 165,90 185,60 200,45 215,38"
+              fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- 柔光 -->
+    <polyline points="50,180 80,160 110,165 140,120 165,90 185,60 200,45 215,38"
+              fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="blur(2.5px)"/>
+
+    <!-- 误差棒 -->
+    <g stroke="#ffffff" stroke-width="1.6" stroke-linecap="round">
+      <line x1="80" y1="153" x2="80" y2="167"/>
+      <line x1="76" y1="153" x2="84" y2="153"/>
+      <line x1="76" y1="167" x2="84" y2="167"/>
+
+      <line x1="140" y1="113" x2="140" y2="127"/>
+      <line x1="136" y1="113" x2="144" y2="113"/>
+      <line x1="136" y1="127" x2="144" y2="127"/>
+
+      <line x1="200" y1="38" x2="200" y2="52"/>
+      <line x1="196" y1="38" x2="204" y2="38"/>
+      <line x1="196" y1="52" x2="204" y2="52"/>
+    </g>
+
+    <!-- 数据点 -->
+    <g fill="none" stroke="#ffffff" stroke-width="2.6">
+      <circle cx="80" cy="160" r="5"/>
+      <circle cx="140" cy="120" r="5"/>
+      <circle cx="185" cy="60" r="5"/>
+      <circle cx="200" cy="45" r="5"/>
+    </g>
+    <g fill="#ffffff">
+      <circle cx="80" cy="160" r="2"/>
+      <circle cx="140" cy="120" r="2"/>
+      <circle cx="185" cy="60" r="2"/>
+      <circle cx="200" cy="45" r="2"/>
+    </g>
+
+    <!-- 轴 -->
+    <line x1="40" y1="195" x2="220" y2="195" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="40" y1="30" x2="40" y2="195" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1.6" stroke-linecap="round"/>
+    <polygon points="220,195 213,191 213,199" fill="#ffffff" fill-opacity="0.45"/>
+    <polygon points="40,30 36,38 44,38" fill="#ffffff" fill-opacity="0.45"/>
+  </g>
+
+  <!-- 中间隔线 -->
+  <line x1="320" y1="80" x2="320" y2="240" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1.2"/>
+
+  <!-- 右侧艺术字标题 -->
+  <g transform="translate(360,0)">
+    <!-- PlotCraft -->
+    <text x="0" y="160" fill="#ffffff"
+          font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+          font-size="96" font-weight="700" letter-spacing="4">
+      Plot<tspan font-weight="300" fill-opacity="0.85">Craft</tspan>
+    </text>
+
+    <!-- 装饰横线 -->
+    <line x1="0" y1="180" x2="160" y2="180" stroke="#ffffff" stroke-opacity="0.6" stroke-width="2"/>
+    <circle cx="168" cy="180" r="3" fill="#ffffff"/>
+    <circle cx="180" cy="180" r="2" fill="#ffffff" fill-opacity="0.6"/>
+    <circle cx="190" cy="180" r="1.5" fill="#ffffff" fill-opacity="0.3"/>
+
+    <!-- 副标题 -->
+    <text x="0" y="218" fill="#ffffff" fill-opacity="0.6"
+          font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+          font-size="16" font-weight="300" letter-spacing="6">
+      AI · SANDBOX · PUBLICATION-READY SVG
+    </text>
+
+    <!-- 极简坐标轴小图标作为标点 -->
+    <g transform="translate(840,150)" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.4" fill="none">
+      <line x1="0" y1="0" x2="40" y2="0"/>
+      <line x1="0" y1="0" x2="0" y2="40"/>
+      <polyline points="0,30 12,22 22,18 30,8 38,4"/>
+    </g>
+  </g>
+</svg>

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="png/logo-banner.svg" width="100%" alt="PlotCraft — AI 驅動的科研論文向量圖產生器"/>
+</p>
+
 <div align="right">
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
