@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     db_path: str = "./data.db"
+    cors_origins: str = ""  # 逗号分隔，空值 = ["*"]（仅本地开发推荐"*"）
 
     @property
     def db_file(self) -> Path:

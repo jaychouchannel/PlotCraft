@@ -92,6 +92,13 @@ export const api = {
       body: JSON.stringify({ code }),
     }),
 
+  downloadFormat: (code: string, fmt: "png" | "pdf" | "svg") =>
+    fetch("/api/generate/download?fmt=" + fmt, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    }),
+
   listHistory: (limit = 50) => req<GenerationRecord[]>(`/api/history?limit=${limit}`),
   clearHistory: () => req<void>("/api/history", { method: "DELETE" }),
   deleteHistory: (id: number) => req<void>(`/api/history/${id}`, { method: "DELETE" }),

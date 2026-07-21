@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
+import { diffLines, Change } from "diff";
 import type { GenerateResponse, ModelConfig, Template } from "../lib/api";
 import { api } from "../lib/api";
 
@@ -19,6 +20,8 @@ export default function GeneratePage() {
   const [resp, setResp] = useState<GenerateResponse | null>(null);
   const [err, setErr] = useState("");
   const [code, setCode] = useState("");
+  const [originalCode, setOriginalCode] = useState("");
+  const [showDiff, setShowDiff] = useState(false);
   const svgRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export default function GeneratePage() {
       });
       setResp(r);
       setCode(r.generated_code || "");
+      setOriginalCode(r.generated_code || "");
       if (r.status === "error") setErr(r.error || "生成失败");
     } catch (e) {
       setErr("请求失败：" + (e as Error).message);
@@ -92,15 +96,29 @@ export default function GeneratePage() {
     }
   }
 
-  function downloadSvg() {
-    if (!resp?.svg) return;
-    const blob = new Blob([resp.svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "plot.svg";
-    a.click();
-    URL.revokeObjectURL(url);
+  async function downloadFormat(fmt: "png" | "pdf" | "svg") {
+    if (!code) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const res = await api.downloadFormat(code, fmt);
+      if (!res.ok) {
+        const t = await res.text().catch(() => res.statusText);
+        setErr(`下载失败: ${res.status} ${t}`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `plot.${fmt}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setErr("下载失败：" + (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function downloadCode() {
@@ -219,6 +237,14 @@ export default function GeneratePage() {
           <div className="flex items-center justify-between mb-2">
             <div className="font-semibold text-sm">生成的 Python 代码</div>
             <div className="flex gap-2">
+              <button
+                className="btn-ghost"
+                onClick={() => setShowDiff((v) => !v)}
+                disabled={!originalCode || !code}
+                title={showDiff ? "回到编辑视图" : "显示与 LLM 原始代码的差异"}
+              >
+                {showDiff ? "隐藏 diff" : "显示 diff"}
+              </button>
               <button className="btn-ghost" onClick={downloadCode} disabled={!code}>
                 下载 .py
               </button>
@@ -227,21 +253,33 @@ export default function GeneratePage() {
               </button>
             </div>
           </div>
-          <CodeMirror
-            value={code}
-            height="280px"
-            theme={vscodeDark}
-            extensions={[python()]}
-            onChange={(val) => setCode(val)}
-          />
+          {showDiff && originalCode ? (
+            <DiffView original={originalCode} current={code} />
+          ) : (
+            <CodeMirror
+              value={code}
+              height="280px"
+              theme={vscodeDark}
+              extensions={[python()]}
+              onChange={(val) => setCode(val)}
+            />
+          )}
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="font-semibold text-sm">SVG 预览</div>
-            <button className="btn-ghost" onClick={downloadSvg} disabled={!resp?.svg}>
-              下载 .svg
-            </button>
+            <div className="flex gap-2">
+              <button className="btn-ghost" onClick={() => downloadFormat("svg")} disabled={!code || busy}>
+                下载 .svg
+              </button>
+              <button className="btn-ghost" onClick={() => downloadFormat("png")} disabled={!code || busy}>
+                下载 .png
+              </button>
+              <button className="btn-ghost" onClick={() => downloadFormat("pdf")} disabled={!code || busy}>
+                下载 .pdf
+              </button>
+            </div>
           </div>
           {err && <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded p-2 mb-2">{err}</div>}
           <div ref={svgRef} className="border border-slate-200 rounded bg-slate-50 flex items-center justify-center min-h-[320px] p-3">
@@ -264,6 +302,80 @@ export default function GeneratePage() {
         .btn-primary { padding: 8px 16px; background: #0f172a; color: white; border-radius: 6px; font-size: 13px; }
         .btn-ghost { padding: 6px 14px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
       `}</style>
+    </div>
+  );
+}
+
+/* ---------- Diff 视图组件 ---------- */
+function DiffView({ original, current }: { original: string; current: string }) {
+  const changes: Change[] = useMemo(() => diffLines(original, current), [original, current]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      // 自动滚动到第一个变更处
+      const firstChange = ref.current.querySelector("[data-diff-changed]");
+      if (firstChange) firstChange.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [changes]);
+
+  // 行号追踪
+  let origLine = 0;
+  let curLine = 0;
+
+  return (
+    <div ref={ref} className="border border-slate-200 rounded overflow-hidden" style={{ maxHeight: "320px", overflowY: "auto" }}>
+      <table className="w-full text-xs font-mono border-collapse">
+        <thead>
+          <tr className="bg-slate-100 sticky top-0">
+            <th className="w-12 text-right px-1 py-0.5 text-slate-400 border-r border-slate-200">原</th>
+            <th className="w-12 text-right px-1 py-0.5 text-slate-400 border-r border-slate-200">改</th>
+            <th className="px-2 py-0.5 text-left text-slate-400">代码</th>
+          </tr>
+        </thead>
+        <tbody>
+          {changes.map((change, ci) => {
+            const lines = change.value.split("\n");
+            // 去掉最后的空行分割
+            if (lines[lines.length - 1] === "") lines.pop();
+
+            const bg = change.added ? "bg-green-50" : change.removed ? "bg-red-50" : "";
+            const sign = change.added ? "+" : change.removed ? "-" : " ";
+
+            return lines.map((line, li) => {
+              const isFirst = li === 0;
+              const key = `${ci}-${li}`;
+
+              if (change.added) {
+                curLine++;
+              } else if (change.removed) {
+                origLine++;
+              } else {
+                origLine++;
+                curLine++;
+              }
+
+              return (
+                <tr
+                  key={key}
+                  className={bg + " hover:bg-opacity-60"}
+                  data-diff-changed={change.added || change.removed ? "1" : undefined}
+                >
+                  <td className="w-12 text-right px-1 py-0 text-slate-400 border-r border-slate-200 select-none">
+                    {change.added ? "" : origLine}
+                  </td>
+                  <td className="w-12 text-right px-1 py-0 text-slate-400 border-r border-slate-200 select-none">
+                    {change.removed ? "" : curLine}
+                  </td>
+                  <td className={"px-2 py-0 whitespace-pre " + (change.added ? "text-green-800" : change.removed ? "text-red-800" : "")}>
+                    {sign}{line}
+                  </td>
+                </tr>
+              );
+            });
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
