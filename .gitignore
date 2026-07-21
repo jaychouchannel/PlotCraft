@@ -1,0 +1,7 @@
+node_modules/
+dist/
+backend/data.db
+backend/.env
+*.pyc
+__pycache__/
+.vite/

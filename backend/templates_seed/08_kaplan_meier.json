@@ -1,0 +1,1 @@
+{"category": "生存曲线", "name": "Kaplan-Meier 生存曲线", "system_prompt": "", "user_template": "请绘制一张 Kaplan-Meier 生存曲线，要求：\n- 纵轴：生存概率 (Survival Probability)，0~1\n- 横轴：时间（{time_unit}）\n- 多条曲线用不同颜色区分\n- 添加风险人数表（risk table）在下方更好\n- 可在此处添加 Log-rank p 值\n- 使用 seaborn 风格\n- 数据来自 data 变量，若空则生成两组生存数据"}

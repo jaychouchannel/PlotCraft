@@ -1,0 +1,1 @@
+{"category": "热图", "name": "热图（带行列聚类）", "system_prompt": "", "user_template": "请绘制一张热图，要求：\n- 用 seaborn.heatmap 绘制矩阵\n- 配色：使用 diverging 色板（如 RdBu_r 或 coolwarm）\n- 在每个格子内显示数值（保留合适小数位）\n- 行列标签可读\n- colorbar 标签：{cblabel}\n- 标题：可省略\n- 数据来自 data 变量，若空则生成示例相关性矩阵"}

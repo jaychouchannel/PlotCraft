@@ -1,0 +1,1 @@
+{"category": "双轴", "name": "双坐标轴折线图", "system_prompt": "", "user_template": "请绘制一张双轴折线图，要求：\n- 左 y 轴和右 y 轴分别对应两个量纲不同的变量\n- x 轴：{xlabel}\n- 左 y：{left_ylabel}，右 y：{right_ylabel}\n- 两个系列不同颜色\n- 顶部图例水平排列\n- 数据来自 data 变量，若空则生成示例数据"}

@@ -1,0 +1,1 @@
+{"category": "折线", "name": "折线图（多系列+误差棒）", "system_prompt": "", "user_template": "请绘制一张折线图，要求：\n- x 轴标签：{xlabel}，y 轴标签：{ylabel}（带单位）\n- 多个系列：{series}  （每个系列名 + 数据）\n- 每个数据点带误差棒\n- 配色使用 Nature 风格系列\n- 添加图例，位置不遮挡数据\n- 适当坐标轴范围\n请用数据 data 中的实际值，如果 data 为空则生成示例数据"}

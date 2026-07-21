@@ -1,0 +1,1 @@
+{"category": "散点", "name": "散点图+线性回归(含R²)", "system_prompt": "", "user_template": "请绘制一张散点图（带线性回归），要求：\n- 用 numpy.polyfit 做线性拟合\n- 在图上标出 R² 和拟合方程\n- 给每个点加上轻微透明度\n- 配色：#3C5488\n- x 轴：{xlabel}，y 轴：{ylabel}\n- 数据来自 data 变量，若空则生成有线性关系的示例数据"}
