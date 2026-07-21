@@ -4,6 +4,7 @@
 
 </div>
 
+
 # PlotCraft
 
 **AI-powered vector graphics generator for scientific papers · Sandboxed rendering · Publication-ready**
@@ -13,6 +14,8 @@
 ---
 
 ## What is this?
+
+<img src="png/5a48d1507b4c2021da7f255f5f191d5b.png" width="32%" alt="demo figure 1" />
 
 Scientific plotting has long been the most tedious part of paper writing:
 
