@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 
 from ..db import get_db
-from ..executor import execute_code
-from ..models import GenerateRequest, GenerateResponse
+from ..executor import execute_code, render_to_format
+from ..models import GenerateRequest, GenerateResponse, RenderRequest
 from ..prompts import DEFAULT_SYSTEM_PROMPT
 from ..providers.factory import make_provider
 from ..providers.openai_compat import extract_code_block
@@ -107,12 +107,38 @@ async def generate(body: GenerateRequest) -> GenerateResponse:
 
 
 @router.post("/render")
-async def render_only(body: dict) -> GenerateResponse:
+async def render_only(body: RenderRequest) -> GenerateResponse:
     """接收已生成的代码，仅在沙箱执行渲染。前端「重新渲染」按钮调用。"""
-    code = body.get("code", "")
-    if not code:
+    if not body.code:
         raise HTTPException(400, "code 不能为空")
-    svg, _path, err = await execute_code(code)
+    svg, _path, err = await execute_code(body.code)
     if err:
-        return GenerateResponse(generated_code=code, status="error", error=err)
-    return GenerateResponse(generated_code=code, svg=svg, status="success")
+        return GenerateResponse(generated_code=body.code, status="error", error=err)
+    return GenerateResponse(generated_code=body.code, svg=svg, status="success")
+
+
+@router.post("/download")
+async def download_format(body: RenderRequest, fmt: str = "png") -> Response:
+    """把用户编辑后的代码渲染为指定格式二进制（png/pdf/svg）。
+
+    前端通过 ?fmt=png 查询参数指定。svg 直接走渲染流水线，png/pdf 走 render_to_format。
+    """
+    if not body.code:
+        raise HTTPException(400, "code 不能为空")
+    fmt = (fmt or "png").lower()
+    if fmt == "svg":
+        svg, _path, err = await execute_code(body.code)
+        if err:
+            raise HTTPException(500, err)
+        return Response(content=svg, media_type="image/svg+xml", headers={"Content-Disposition": 'attachment; filename="plot.svg"'})
+    if fmt not in ("png", "pdf"):
+        raise HTTPException(400, f"不支持的格式: {fmt}")
+    data, err = await render_to_format(body.code, fmt)
+    if err:
+        raise HTTPException(500, err)
+    media = "image/png" if fmt == "png" else "application/pdf"
+    return Response(
+        content=data,
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="plot.{fmt}"'},
+    )

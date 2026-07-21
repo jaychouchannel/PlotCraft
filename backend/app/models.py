@@ -61,6 +61,10 @@ class GenerateResponse(BaseModel):
     error: str = ""
 
 
+class RenderRequest(BaseModel):
+    code: str
+
+
 class GenerationRecord(BaseModel):
     id: int
     model_id: int

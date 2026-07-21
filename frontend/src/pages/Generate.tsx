@@ -92,15 +92,29 @@ export default function GeneratePage() {
     }
   }
 
-  function downloadSvg() {
-    if (!resp?.svg) return;
-    const blob = new Blob([resp.svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "plot.svg";
-    a.click();
-    URL.revokeObjectURL(url);
+  async function downloadFormat(fmt: "png" | "pdf" | "svg") {
+    if (!code) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const res = await api.downloadFormat(code, fmt);
+      if (!res.ok) {
+        const t = await res.text().catch(() => res.statusText);
+        setErr(`下载失败: ${res.status} ${t}`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `plot.${fmt}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setErr("下载失败：" + (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function downloadCode() {
@@ -239,9 +253,17 @@ export default function GeneratePage() {
         <div className="bg-white border border-slate-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="font-semibold text-sm">SVG 预览</div>
-            <button className="btn-ghost" onClick={downloadSvg} disabled={!resp?.svg}>
-              下载 .svg
-            </button>
+            <div className="flex gap-2">
+              <button className="btn-ghost" onClick={() => downloadFormat("svg")} disabled={!code || busy}>
+                下载 .svg
+              </button>
+              <button className="btn-ghost" onClick={() => downloadFormat("png")} disabled={!code || busy}>
+                下载 .png
+              </button>
+              <button className="btn-ghost" onClick={() => downloadFormat("pdf")} disabled={!code || busy}>
+                下载 .pdf
+              </button>
+            </div>
           </div>
           {err && <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded p-2 mb-2">{err}</div>}
           <div ref={svgRef} className="border border-slate-200 rounded bg-slate-50 flex items-center justify-center min-h-[320px] p-3">
