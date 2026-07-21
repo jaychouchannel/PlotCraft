@@ -1,6 +1,12 @@
+<div align="right">
+
+[简体中文](README.md) | [繁體中文](README.zh-TW.md)
+
+</div>
+
 # PlotCraft
 
-**科研论文矢量图生成器 · AI 驱动 · 沙箱渲染 · 期刊就位**
+**AI 驱动的科研论文矢量图生成器 · 沙箱渲染 · 期刊就位**
 
 > 用自然语言描述你要画的图，PlotCraft 调用大模型生成 matplotlib 代码，在后端隔离沙箱中执行，直接产出可投 Nature / Cell / Science 级别的 SVG 矢量图——所有密钥本地加密、所有代码本地运行、所有数据不出本机。
 
@@ -255,7 +261,7 @@ npm run dev
 
 ---
 
-## 路线图（若需）
+## 路线图
 
 - [ ] PDF / EPS 导出（目前仅 SVG）
 - [ ] 批量生成（一次 prompt 多张子图拼 panel）
