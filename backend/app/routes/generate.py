@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..db import get_db
@@ -14,6 +15,10 @@ from ..providers.openai_compat import extract_code_block
 from ..svg_sanitize import sanitize_svg
 
 router = APIRouter(prefix="/api/generate", tags=["generate"])
+
+
+class ClientDisconnected(Exception):
+    """客户端断开连接，用于跳出主流程，避免继续往 DB 写历史。"""
 
 
 async def _load_provider(model_id: int):
@@ -51,7 +56,7 @@ async def _load_template(template_id: int | None) -> tuple[str, str]:
 
 
 @router.post("")
-async def generate(body: GenerateRequest) -> GenerateResponse:
+async def generate(body: GenerateRequest, request: Request) -> GenerateResponse:
     provider = await _load_provider(body.model_id)
     sys_prompt, user_template = await _load_template(body.template_id)
     if body.system_prompt:
@@ -74,8 +79,13 @@ async def generate(body: GenerateRequest) -> GenerateResponse:
 
     try:
         raw = await provider.generate(messages, temperature=body.temperature)
+    except asyncio.CancelledError:
+        raise
     except Exception as exc:
         return GenerateResponse(generated_code="", status="error", error=f"LLM 调用失败: {exc}")
+
+    if await request.is_disconnected():
+        raise ClientDisconnected()
 
     code = extract_code_block(raw)
     if not code:
@@ -85,7 +95,20 @@ async def generate(body: GenerateRequest) -> GenerateResponse:
     status = "code_only"
     error = ""
     if body.render:
-        svg, _path, err = await execute_code(code)
+        # 沙箱执行期间客户端断开 → 不再写历史
+        sandbox_task = asyncio.create_task(execute_code(code))
+        disconnect_task = asyncio.create_task(request.is_disconnected())
+        done, pending = await asyncio.wait(
+            {sandbox_task, disconnect_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in pending:
+            t.cancel()
+        if disconnect_task in done and disconnect_task.result():
+            raise ClientDisconnected()
+        if sandbox_task in done:
+            svg, _path, err = sandbox_task.result()
+        else:
+            svg, _path, err = "", "", "执行被取消"
         if err:
             status = "error"
             error = err
@@ -97,11 +120,17 @@ async def generate(body: GenerateRequest) -> GenerateResponse:
 
     # 写入历史
     db = await get_db()
-    await db.execute(
-        "INSERT INTO generations (model_id, template_id, user_input, generated_code, output_svg, status, error) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (body.model_id, body.template_id, body.user_input, code, svg or "", status, error),
+    cursor = await db.execute(
+        "INSERT INTO generations (model_id, template_id, user_input, generated_code, status, error) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (body.model_id, body.template_id, body.user_input, code, status, error),
     )
+    gen_id = cursor.lastrowid
+    if svg:
+        await db.execute(
+            "INSERT INTO generation_svgs (generation_id, svg_content) VALUES (?, ?)",
+            (gen_id, svg),
+        )
     await db.commit()
 
     return GenerateResponse(generated_code=code, svg=svg, status=status, error=error)

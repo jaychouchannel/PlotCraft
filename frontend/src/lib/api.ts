@@ -61,11 +61,11 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
-  if (!res.ok) {
+  if (!res.ok && res.status !== 499) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status} ${text}`);
   }
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204 || res.status === 499) return undefined as T;
   return res.json();
 }
 
@@ -84,12 +84,13 @@ export const api = {
     req<Template>(`/api/templates/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteTemplate: (id: number) => req<void>(`/api/templates/${id}`, { method: "DELETE" }),
 
-  generate: (body: GenerateRequest) =>
-    req<GenerateResponse>("/api/generate", { method: "POST", body: JSON.stringify(body) }),
-  render: (code: string) =>
+  generate: (body: GenerateRequest, signal?: AbortSignal) =>
+    req<GenerateResponse>("/api/generate", { method: "POST", body: JSON.stringify(body), signal }),
+  render: (code: string, signal?: AbortSignal) =>
     req<GenerateResponse>("/api/generate/render", {
       method: "POST",
       body: JSON.stringify({ code }),
+      signal,
     }),
 
   downloadFormat: (code: string, fmt: "png" | "pdf" | "svg") =>

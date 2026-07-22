@@ -10,6 +10,9 @@ import traceback
 from pathlib import Path
 
 SANDBOX_TIMEOUT = 60  # 秒
+SANDBOX_CONCURRENCY = 2  # 同时执行的沙箱子进程上限，防止狂点导致雪崩
+
+_sem = asyncio.Semaphore(SANDBOX_CONCURRENCY)
 
 # 注入到用户代码末尾的多格式保存 hook：
 # - 优先用 matplotlib 当前 figure（plt.gcf()），若已 close 则重新读 SVG 也无能为力
@@ -36,51 +39,52 @@ async def execute_code(code: str) -> tuple[str, str, str]:
       - 成功: (svg, "/tmp/.../output.svg", "")
       - 失败: ("", "", error_message)
     """
-    tmpdir = tempfile.mkdtemp(prefix="plot_sandbox_")
-    try:
-        code_path = Path(tmpdir) / "script.py"
-        code_path.write_text(code + "\n" + _MULTIFORMAT_HOOK, encoding="utf-8")
-
-        env = dict(os.environ)
-        env["MPLBACKEND"] = "Agg"
-        env["NO_PROXY"] = "*"
-        env["no_proxy"] = "*"
-
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable,
-            str(code_path),
-            cwd=tmpdir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
-
+    async with _sem:
+        tmpdir = tempfile.mkdtemp(prefix="plot_sandbox_")
         try:
-            stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            return "", "", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
+            code_path = Path(tmpdir) / "script.py"
+            code_path.write_text(code + "\n" + _MULTIFORMAT_HOOK, encoding="utf-8")
 
-        if proc.returncode != 0:
-            err_text = (stderr_b or b"").decode("utf-8", errors="replace")
-            return "", "", err_text
+            env = dict(os.environ)
+            env["MPLBACKEND"] = "Agg"
+            env["NO_PROXY"] = "*"
+            env["no_proxy"] = "*"
 
-        svg_path = Path(tmpdir) / "output.svg"
-        if not svg_path.exists():
-            err_tail = (stderr_b or b"").decode("utf-8", errors="replace")[-500:]
-            return "", "", f"脚本执行完毕但未生成 output.svg，请检查 plt.savefig 路径。\n{err_tail}"
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable,
+                str(code_path),
+                cwd=tmpdir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
 
-        svg_content = svg_path.read_text(encoding="utf-8", errors="replace")
-        return svg_content, str(svg_path), ""
+            try:
+                stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                return "", "", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
 
-    except Exception:
-        return "", "", traceback.format_exc()
-    finally:
-        try:
-            shutil.rmtree(tmpdir, ignore_errors=True)
+            if proc.returncode != 0:
+                err_text = (stderr_b or b"").decode("utf-8", errors="replace")
+                return "", "", err_text
+
+            svg_path = Path(tmpdir) / "output.svg"
+            if not svg_path.exists():
+                err_tail = (stderr_b or b"").decode("utf-8", errors="replace")[-500:]
+                return "", "", f"脚本执行完毕但未生成 output.svg，请检查 plt.savefig 路径。\n{err_tail}"
+
+            svg_content = svg_path.read_text(encoding="utf-8", errors="replace")
+            return svg_content, str(svg_path), ""
+
         except Exception:
-            pass
+            return "", "", traceback.format_exc()
+        finally:
+            try:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            except Exception:
+                pass
 
 
 async def render_to_format(code: str, fmt: str) -> tuple[bytes, str]:
@@ -93,14 +97,13 @@ async def render_to_format(code: str, fmt: str) -> tuple[bytes, str]:
     if fmt not in ("png", "pdf", "svg"):
         return b"", f"不支持的格式: {fmt}"
 
-    tmpdir = tempfile.mkdtemp(prefix="plot_sandbox_")
-    try:
-        code_path = Path(tmpdir) / "script.py"
-        # 让用户代码照常跑（它通常会 savefig svg）；hook 里再补一份目标格式
-        hook = _MULTIFORMAT_HOOK.replace('"output.png"', f'"output.{fmt}"') if fmt != "png" else _MULTIFORMAT_HOOK
-        # pdf 同时也要 png hook 改成 pdf
-        if fmt == "pdf":
-            hook = '''
+    async with _sem:
+        tmpdir = tempfile.mkdtemp(prefix="plot_sandbox_")
+        try:
+            code_path = Path(tmpdir) / "script.py"
+            hook = _MULTIFORMAT_HOOK.replace('"output.png"', f'"output.{fmt}"') if fmt != "png" else _MULTIFORMAT_HOOK
+            if fmt == "pdf":
+                hook = '''
 try:
     import matplotlib.pyplot as _pc_plt
     _pc_fig = _pc_plt.gcf()
@@ -109,40 +112,40 @@ try:
 except Exception:
     pass
 '''
-        code_path.write_text(code + "\n" + hook, encoding="utf-8")
+            code_path.write_text(code + "\n" + hook, encoding="utf-8")
 
-        env = dict(os.environ)
-        env["MPLBACKEND"] = "Agg"
-        env["NO_PROXY"] = "*"
-        env["no_proxy"] = "*"
+            env = dict(os.environ)
+            env["MPLBACKEND"] = "Agg"
+            env["NO_PROXY"] = "*"
+            env["no_proxy"] = "*"
 
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable,
-            str(code_path),
-            cwd=tmpdir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
-        try:
-            stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            return b"", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable,
+                str(code_path),
+                cwd=tmpdir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+            try:
+                stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                return b"", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
 
-        if proc.returncode != 0:
-            return b"", (stderr_b or b"").decode("utf-8", errors="replace")
+            if proc.returncode != 0:
+                return b"", (stderr_b or b"").decode("utf-8", errors="replace")
 
-        out_path = Path(tmpdir) / f"output.{fmt}"
-        if not out_path.exists():
-            return b"", f"脚本执行完毕但未生成 output.{fmt}"
-        return out_path.read_bytes(), ""
+            out_path = Path(tmpdir) / f"output.{fmt}"
+            if not out_path.exists():
+                return b"", f"脚本执行完毕但未生成 output.{fmt}"
+            return out_path.read_bytes(), ""
 
-    except Exception:
-        return b"", traceback.format_exc()
-    finally:
-        try:
-            shutil.rmtree(tmpdir, ignore_errors=True)
         except Exception:
-            pass
+            return b"", traceback.format_exc()
+        finally:
+            try:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            except Exception:
+                pass

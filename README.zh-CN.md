@@ -78,7 +78,7 @@ PlotCraft 把"自然语言 → 代码 → 渲染 → 矢量输出"这条链路�
 - 下载按钮：`.svg` 矢量、`.py` 源码一键取走。
 
 ### 🗂 历史回放 · 不丢任何一次实验
-- 每次生成（成功 / 失败 / 仅代码）都进 `generations` 表，含 `model_id` / `template_id` / `user_input` / `generated_code` / `output_svg` / `status` / `error` / `created_at`；
+- 每次生成（成功 / 失败 / 仅代码）都进 `generations` 表，含 `model_id` / `template_id` / `user_input` / `generated_code` / `status` / `error` / `created_at`；SVG 内容独立存于 `generation_svgs` 表；
 - 「历史」页可查最近 50 条、单条删除、全清空；
 - 失败记录也保留，方便对照排查环境问题。
 

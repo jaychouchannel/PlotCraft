@@ -78,7 +78,7 @@ PlotCraft 把「自然語言 → 程式碼 → 渲染 → 向量輸出」這條�
 - 下載按鈕：`.svg` 向量、`.py` 原始碼一鍵取走。
 
 ### 🗂 歷史回放 · 不丟任何一次實驗
-- 每次產生（成功 / 失敗 / 僅程式碼）都進 `generations` 資料表，含 `model_id` / `template_id` / `user_input` / `generated_code` / `output_svg` / `status` / `error` / `created_at`；
+- 每次產生（成功 / 失敗 / 僅程式碼）都進 `generations` 資料表，含 `model_id` / `template_id` / `user_input` / `generated_code` / `status` / `error` / `created_at`；SVG 內容獨立存於 `generation_svgs` 表；
 - 「歷史」頁可查最近 50 筆、單筆刪除、全部清空；
 - 失敗紀錄也保留，方便對照排查環境問題。
 

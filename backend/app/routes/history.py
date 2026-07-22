@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from ..db import get_db
 from ..models import GenerationRecord
@@ -24,6 +24,19 @@ async def list_history(limit: int = 50) -> list[GenerationRecord]:
     ) for r in rows]
 
 
+@router.get("/{generation_id}/svg")
+async def get_generation_svg(generation_id: int) -> dict:
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT svg_content FROM generation_svgs WHERE generation_id=? ORDER BY id DESC LIMIT 1",
+        (generation_id,),
+    )
+    row = await cursor.fetchone()
+    if row is None:
+        raise HTTPException(404, "SVG 不存在")
+    return {"svg": row["svg_content"]}
+
+
 @router.delete("/{generation_id}", status_code=204)
 async def delete_history(generation_id: int):
     db = await get_db()
@@ -32,7 +45,13 @@ async def delete_history(generation_id: int):
 
 
 @router.delete("", status_code=204)
-async def clear_history():
+async def clear_history(older_than: str | None = None):
+    """清空历史记录。若指定 older_than（ISO 日期字符串），仅删除该时间之前的记录。"""
     db = await get_db()
-    await db.execute("DELETE FROM generations")
+    if older_than:
+        await db.execute("DELETE FROM generations WHERE created_at < ?", (older_than,))
+    else:
+        await db.execute("DELETE FROM generations")
+    await db.commit()
+    await db.execute("VACUUM")
     await db.commit()
