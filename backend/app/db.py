@@ -13,6 +13,7 @@ async def get_db() -> aiosqlite.Connection:
         db_path = get_settings().db_file
         DB = await aiosqlite.connect(str(db_path))
         DB.row_factory = aiosqlite.Row
+        await DB.execute("PRAGMA foreign_keys = ON")
         await _init_tables(DB)
     return DB
 
@@ -49,15 +50,20 @@ async def _init_tables(db: aiosqlite.Connection):
 
         CREATE TABLE IF NOT EXISTS generations (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            model_id         INTEGER NOT NULL,
-            template_id      INTEGER,
+            model_id         INTEGER NOT NULL REFERENCES model_configs(id) ON DELETE SET NULL,
+            template_id      INTEGER REFERENCES templates(id) ON DELETE SET NULL,
             user_input       TEXT    NOT NULL DEFAULT '',
             generated_code   TEXT    NOT NULL DEFAULT '',
-            output_svg       TEXT    NOT NULL DEFAULT '',
-            output_svg_path  TEXT    NOT NULL DEFAULT '',
             status           TEXT    NOT NULL DEFAULT 'pending',
             error            TEXT    NOT NULL DEFAULT '',
             created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS generation_svgs (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            generation_id   INTEGER NOT NULL REFERENCES generations(id) ON DELETE CASCADE,
+            svg_content     TEXT    NOT NULL,
+            created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
         );
     """)
     await db.commit()
