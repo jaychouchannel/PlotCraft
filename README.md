@@ -256,7 +256,7 @@ The figures below were generated entirely by PlotCraft — natural language in, 
 
 | Risk | Mitigation |
 |---|---|
-| LLM-generated malicious code reads local files | System prompt bans `os / sys / pathlib / subprocess / open()` imports; subprocess runs in an isolated temp directory |
+| LLM-generated malicious code reads local files | AST static analysis blocks `os / sys / shutil / pathlib / subprocess / open(w+) / __import__ / eval / exec` etc. **before** subprocess exec (code_path does not accept route input); subprocess runs in an isolated temp directory |
 | LLM sends data to public networks | System prompt bans `socket / requests / httpx`; env sets `NO_PROXY=*`; downstream network namespaces can be added |
 | Infinite loop / deadlock exhausts CPU | Subprocess killed after 60s timeout |
 | API key leakage | Fernet symmetric encryption to database; frontend only sees masked strings |
