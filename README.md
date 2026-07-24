@@ -79,7 +79,7 @@ PlotCraft closes the entire pipeline in one go: **natural language → code → 
 - One-click downloads: `.svg` vector and `.py` source code.
 
 ### 🗂 Full history · Never lose an experiment
-- Every generation (success, failure, or code-only) lands in the `generations` table with `model_id`, `template_id`, `user_input`, `generated_code`, `output_svg`, `status`, `error`, and `created_at`;
+- Every generation (success, failure, or code-only) lands in the `generations` table with `model_id`, `template_id`, `user_input`, `generated_code`, `status`, `error`, and `created_at`; SVG content is stored in a separate `generation_svgs` table;
 - History page shows last 50 records, supports single delete and full clear;
 - Failed runs are preserved for side-by-side debugging.
 
@@ -262,7 +262,7 @@ The figures below were generated entirely by PlotCraft — natural language in, 
 | API key leakage | Fernet symmetric encryption to database; frontend only sees masked strings |
 | SVG XSS | SVG rendered inline in frontend DOM; sandbox has no network; no external resource loading |
 
-> ⚠️ **Production note**: CORS defaults to `allow_origins=["*"]`, suitable for local single-user use. For multi-user or public deployments, change to a whitelist and add authentication.
+> ⚠️ **Production note**: CORS defaults to `allow_origins=["*"]` with `allow_credentials=False`, suitable for local single-user use. For multi-user or public deployments requiring auth, set `CORS_ORIGINS` env to a comma-separated whitelist (e.g., `https://your.domain.com`) — `allow_credentials` enables automatically when the whitelist is non-empty. The whitelist must not contain wildcards when credentials are enabled.
 
 ---
 

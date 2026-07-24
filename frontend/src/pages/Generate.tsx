@@ -23,6 +23,14 @@ export default function GeneratePage() {
   const [originalCode, setOriginalCode] = useState("");
   const [showDiff, setShowDiff] = useState(false);
   const svgRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // 离开页面时取消正在进行的请求
+      abortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -58,6 +66,9 @@ export default function GeneratePage() {
       setErr("请先在「模型」页配置 AI 模型");
       return;
     }
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     setBusy(true);
     setErr("");
     setResp(null);
@@ -69,30 +80,37 @@ export default function GeneratePage() {
         user_prompt: userPrompt,
         temperature,
         render,
-      });
+      }, ac.signal);
+      if (ac.signal.aborted) return;
       setResp(r);
       setCode(r.generated_code || "");
       setOriginalCode(r.generated_code || "");
       if (r.status === "error") setErr(r.error || "生成失败");
     } catch (e) {
+      if ((e as Error).name === "AbortError") return;
       setErr("请求失败：" + (e as Error).message);
     } finally {
-      setBusy(false);
+      if (!abortRef.current?.signal.aborted) setBusy(false);
     }
   }
 
   async function rerender() {
     if (!code) return;
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     setBusy(true);
     setErr("");
     try {
-      const r = await api.render(code);
+      const r = await api.render(code, ac.signal);
+      if (ac.signal.aborted) return;
       setResp(r);
       if (r.status === "error") setErr(r.error);
     } catch (e) {
+      if ((e as Error).name === "AbortError") return;
       setErr("渲染失败：" + (e as Error).message);
     } finally {
-      setBusy(false);
+      if (!abortRef.current?.signal.aborted) setBusy(false);
     }
   }
 
@@ -225,8 +243,8 @@ export default function GeneratePage() {
             onChange={(e) => setUserPrompt(e.target.value)}
             placeholder={"描述你要绘制的图，例如：\n- 5 条曲线，x 是 0~10，y 是 sin 函数，标签 Time (s) / Amplitude\n- 5 个分组柱状图，比较 A/B/C/D/E 5 种处理下的细胞活力\n- 散点 + 线性回归，x 是细胞大小，y 是蛋白表达"}
           />
-          <button className="btn-primary w-full" onClick={run} disabled={busy || !modelId}>
-            {busy ? "生成中…" : "生成"}
+          <button className="btn-primary w-full" onClick={busy ? () => { abortRef.current?.abort(); setBusy(false); } : run} disabled={!busy && !modelId}>
+            {busy ? "取消生成" : "生成"}
           </button>
         </div>
       </div>

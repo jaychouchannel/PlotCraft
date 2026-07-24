@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import get_settings
 from .db import close_db, get_db
@@ -40,13 +41,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_settings = get_settings()
+origins = _settings.cors_origins.split(",") if _settings.cors_origins else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins.split(",") if settings.cors_origins else ["*"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=_settings.cors_origins != "",
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_exception_handler(generate.ClientDisconnected, lambda req, exc: JSONResponse(status_code=499, content={"detail": "client disconnected"}))
 
 app.include_router(models.router)
 app.include_router(templates.router)
