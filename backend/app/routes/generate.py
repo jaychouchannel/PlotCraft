@@ -66,10 +66,14 @@ async def generate(body: GenerateRequest, request: Request) -> GenerateResponse:
     parts = []
     if user_template:
         parts.append(f"# 模板参考（如有占位符请替换）：\n{user_template}\n\n# 用户实际需求：")
-    if body.user_input:
+    if body.user_prompt:
+        parts.append(body.user_prompt)
+    elif body.user_input:
         parts.append(body.user_input)
     else:
         parts.append("请根据模板生成一张科研论文风格的图。")
+    if body.user_input and body.user_prompt:
+        parts.append(f"\n# 附带数据 / 参数：\n{body.user_input}")
     user_prompt = "\n".join(parts)
 
     messages = [
@@ -120,10 +124,11 @@ async def generate(body: GenerateRequest, request: Request) -> GenerateResponse:
 
     # 写入历史
     db = await get_db()
+    history_input = body.user_prompt or body.user_input
     cursor = await db.execute(
         "INSERT INTO generations (model_id, template_id, user_input, generated_code, status, error) "
         "VALUES (?, ?, ?, ?, ?, ?)",
-        (body.model_id, body.template_id, body.user_input, code, status, error),
+        (body.model_id, body.template_id, history_input, code, status, error),
     )
     gen_id = cursor.lastrowid
     if svg:
