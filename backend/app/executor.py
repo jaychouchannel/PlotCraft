@@ -100,51 +100,56 @@ async def execute_code(code: str) -> tuple[str, str, str]:
       - 成功: (svg, "/tmp/.../output.svg", "")
       - 失败: ("", "", error_message)
     """
+    # AST 静态检查：在执行前拦截黑名单 import / 危险调用
+    raise_reason = _validate_sandboxed_code(code)
+    if raise_reason:
+        return "", "", raise_reason
+
+    tmpdir = tempfile.mkdtemp(prefix="plot_sandbox_")
+    try:
+        code_path = Path(tmpdir) / "script.py"
+        code_path.write_text(code + "\n" + _build_export_hook(("svg", "png", "pdf")), encoding="utf-8")
+
+        env = dict(os.environ)
+        env["MPLBACKEND"] = "Agg"
+        env["NO_PROXY"] = "*"
+        env["no_proxy"] = "*"
+
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(code_path),
+            cwd=tmpdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
 
         try:
-            code_path = Path(tmpdir) / "script.py"
-            code_path.write_text(code + "\n" + _MULTIFORMAT_HOOK, encoding="utf-8")
+            stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return "", "", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
 
-            env = dict(os.environ)
-            env["MPLBACKEND"] = "Agg"
-            env["NO_PROXY"] = "*"
-            env["no_proxy"] = "*"
+        if proc.returncode != 0:
+            err_text = (stderr_b or b"").decode("utf-8", errors="replace")
+            return "", "", err_text
 
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable,
-                str(code_path),
-                cwd=tmpdir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=env,
-            )
+        svg_path = Path(tmpdir) / "output.svg"
+        if not svg_path.exists():
+            err_tail = (stderr_b or b"").decode("utf-8", errors="replace")[-500:]
+            return "", "", f"脚本执行完毕但未生成 output.svg，请检查 plt.savefig 路径。\n{err_tail}"
 
-            try:
-                stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.wait()
-                return "", "", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
+        svg_content = svg_path.read_text(encoding="utf-8", errors="replace")
+        return svg_content, str(svg_path), ""
 
-            if proc.returncode != 0:
-                err_text = (stderr_b or b"").decode("utf-8", errors="replace")
-                return "", "", err_text
-
-            svg_path = Path(tmpdir) / "output.svg"
-            if not svg_path.exists():
-                err_tail = (stderr_b or b"").decode("utf-8", errors="replace")[-500:]
-                return "", "", f"脚本执行完毕但未生成 output.svg，请检查 plt.savefig 路径。\n{err_tail}"
-
-            svg_content = svg_path.read_text(encoding="utf-8", errors="replace")
-            return svg_content, str(svg_path), ""
-
+    except Exception:
+        return "", "", traceback.format_exc()
+    finally:
+        try:
+            shutil.rmtree(tmpdir, ignore_errors=True)
         except Exception:
-            return "", "", traceback.format_exc()
-        finally:
-            try:
-                shutil.rmtree(tmpdir, ignore_errors=True)
-            except Exception:
-                pass
+            pass
 
 
 async def render_to_format(code: str, fmt: str) -> tuple[bytes, str]:
@@ -162,11 +167,44 @@ async def render_to_format(code: str, fmt: str) -> tuple[bytes, str]:
     if fmt not in ("png", "pdf", "svg"):
         return b"", f"不支持的格式: {fmt}"
 
+    tmpdir = tempfile.mkdtemp(prefix="plot_sandbox_")
+    try:
+        code_path = Path(tmpdir) / "script.py"
+        hook = _build_export_hook((fmt,))
+        code_path.write_text(code + "\n" + hook, encoding="utf-8")
 
+        env = dict(os.environ)
+        env["MPLBACKEND"] = "Agg"
+        env["NO_PROXY"] = "*"
+        env["no_proxy"] = "*"
+
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(code_path),
+            cwd=tmpdir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
+        try:
+            stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=SANDBOX_TIMEOUT)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return b"", f"执行超时 (>{SANDBOX_TIMEOUT}s)"
+
+        if proc.returncode != 0:
+            return b"", (stderr_b or b"").decode("utf-8", errors="replace")
+
+        out_path = Path(tmpdir) / f"output.{fmt}"
+        if not out_path.exists():
+            return b"", f"脚本执行完毕但未生成 output.{fmt}"
+        return out_path.read_bytes(), ""
+
+    except Exception:
+        return b"", traceback.format_exc()
+    finally:
+        try:
+            shutil.rmtree(tmpdir, ignore_errors=True)
         except Exception:
-            return b"", traceback.format_exc()
-        finally:
-            try:
-                shutil.rmtree(tmpdir, ignore_errors=True)
-            except Exception:
-                pass
+            pass

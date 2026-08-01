@@ -117,6 +117,8 @@ async def generate(body: GenerateRequest, request: Request) -> GenerateResponse:
             status = "error"
             error = err
         elif svg:
+            # 消毒：剥离 <script> / on* / 外部引用，防前端 dangerouslySetInnerHTML XSS
+            svg = sanitize_svg(svg)
             status = "success"
         else:
             status = "error"
@@ -149,6 +151,8 @@ async def render_only(body: RenderRequest) -> GenerateResponse:
     svg, _path, err = await execute_code(body.code)
     if err:
         return GenerateResponse(generated_code=body.code, status="error", error=err)
+    # 消毒：防前端 dangerouslySetInnerHTML XSS
+    svg = sanitize_svg(svg)
     return GenerateResponse(generated_code=body.code, svg=svg, status="success")
 
 
@@ -165,6 +169,8 @@ async def download_format(body: RenderRequest, fmt: str = "png") -> Response:
         svg, _path, err = await execute_code(body.code)
         if err:
             raise HTTPException(500, err)
+        # 消毒后返回原始内容，前端可直接 inline 预览
+        svg = sanitize_svg(svg)
         return Response(content=svg, media_type="image/svg+xml", headers={"Content-Disposition": 'attachment; filename="plot.svg"'})
     if fmt not in ("png", "pdf"):
         raise HTTPException(400, f"不支持的格式: {fmt}")
