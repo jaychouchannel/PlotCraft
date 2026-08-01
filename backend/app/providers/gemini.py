@@ -31,7 +31,8 @@ class GeminiProvider(Provider):
         }
 
         try:
-            response = client.models.generate_content(
+            # 使用异步 client.aio，避免同步 HTTP 调用阻塞 FastAPI 事件循环
+            response = await client.aio.models.generate_content(
                 model=self.model_name,
                 contents=contents,
                 config=generation_config,
