@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
@@ -24,6 +24,7 @@ export default function GeneratePage() {
   const [showDiff, setShowDiff] = useState(false);
   const svgRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const userModifiedRef = useRef(false); // 追踪用户是否手动修改了 systemOverride
 
   useEffect(() => {
     return () => {
@@ -49,17 +50,23 @@ export default function GeneratePage() {
   // 当用户选择模板，把 user_template 灌入编辑框
   const tpl = useMemo(() => templates.find((t) => t.id === templateId) || null, [templates, templateId]);
   useEffect(() => {
+    // 切换模板时重置用户修改标记
+    userModifiedRef.current = false;
     if (tpl?.user_template && !userPrompt) {
       setUserPrompt(tpl.user_template);
     }
-    if (tpl?.system_prompt) setSystemOverride(tpl.system_prompt);
+    // 仅在用户未手动修改时，才将 systemOverride 同步为模板默认值
+    if (tpl?.system_prompt && !userModifiedRef.current) {
+      setSystemOverride(tpl.system_prompt);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId]);
 
-  // 模板切换时刷新 systemOverride（当用户没自定义时跟模板走）
-  useEffect(() => {
-    if (tpl) setSystemOverride(tpl.system_prompt || "");
-  }, [tpl]);
+  // 用户手动编辑 systemOverride 时标记为已修改
+  const handleSystemOverrideChange = useCallback((value: string) => {
+    userModifiedRef.current = true;
+    setSystemOverride(value);
+  }, []);
 
   async function run() {
     if (!modelId) {
@@ -219,7 +226,7 @@ export default function GeneratePage() {
                 rows={5}
                 className="w-full input font-mono text-xs mt-2"
                 value={systemOverride}
-                onChange={(e) => setSystemOverride(e.target.value)}
+                onChange={(e) => handleSystemOverrideChange(e.target.value)}
                 placeholder="留空则使用后端默认科研绘图约束；选择模板时默认填入模板的 system_prompt"
               />
             )}
