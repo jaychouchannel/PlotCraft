@@ -4,5 +4,6 @@ aiofiles>=24.1.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-dotenv>=1.0.1
+pydantic-settings>=2.5.0
 openai>=1.55.0
 google-genai>=0.3.0
