@@ -22,6 +22,7 @@ export default function GeneratePage() {
   const [code, setCode] = useState("");
   const [originalCode, setOriginalCode] = useState("");
   const [showDiff, setShowDiff] = useState(false);
+  const [tplSystemPrompt, setTplSystemPrompt] = useState("");
   const svgRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -52,14 +53,14 @@ export default function GeneratePage() {
     if (tpl?.user_template && !userPrompt) {
       setUserPrompt(tpl.user_template);
     }
-    if (tpl?.system_prompt) setSystemOverride(tpl.system_prompt);
+    // 仅当用户未自定义 system prompt（内容为空或仍为上一个模板的默认值）时才跟随模板
+    const newDefault = tpl?.system_prompt || "";
+    if (systemOverride === "" || systemOverride === tplSystemPrompt) {
+      setSystemOverride(newDefault);
+    }
+    setTplSystemPrompt(newDefault);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId]);
-
-  // 模板切换时刷新 systemOverride（当用户没自定义时跟模板走）
-  useEffect(() => {
-    if (tpl) setSystemOverride(tpl.system_prompt || "");
-  }, [tpl]);
 
   async function run() {
     if (!modelId) {

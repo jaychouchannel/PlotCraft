@@ -101,6 +101,7 @@ export const api = {
     }),
 
   listHistory: (limit = 50) => req<GenerationRecord[]>(`/api/history?limit=${limit}`),
+  getHistorySvg: (id: number) => req<{ svg: string }>(`/api/history/${id}/svg`),
   clearHistory: () => req<void>("/api/history", { method: "DELETE" }),
   deleteHistory: (id: number) => req<void>(`/api/history/${id}`, { method: "DELETE" }),
 };

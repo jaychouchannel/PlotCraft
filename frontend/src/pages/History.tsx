@@ -8,6 +8,7 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 export default function HistoryPage() {
   const [items, setItems] = useState<GenerationRecord[]>([]);
   const [active, setActive] = useState<GenerationRecord | null>(null);
+  const [svg, setSvg] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
   async function load() {
@@ -20,6 +21,19 @@ export default function HistoryPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function selectRecord(r: GenerationRecord) {
+    setActive(r);
+    setSvg(null);
+    if (r.status === "success") {
+      try {
+        const res = await api.getHistorySvg(r.id);
+        setSvg(res.svg);
+      } catch {
+        // SVG 可能不存在（如旧记录），静默处理
+      }
+    }
+  }
 
   async function clearAll() {
     if (!confirm("清空全部历史？")) return;
@@ -52,7 +66,7 @@ export default function HistoryPage() {
             items.map((r) => (
               <li
                 key={r.id}
-                onClick={() => setActive(r)}
+                onClick={() => selectRecord(r)}
                 className={`p-3 border rounded cursor-pointer text-sm ${
                   active?.id === r.id ? "bg-slate-100 border-slate-400" : "hover:bg-slate-50"
                 }`}
@@ -104,6 +118,22 @@ export default function HistoryPage() {
                 editable={false}
               />
             </div>
+            {active.status === "success" && (
+              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                <div className="font-semibold text-sm mb-2">SVG 预览</div>
+                <div className="border border-slate-200 rounded bg-slate-50 flex items-center justify-center min-h-[200px] p-3">
+                  {svg ? (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      dangerouslySetInnerHTML={{ __html: svg }}
+                      style={{ maxHeight: "50vh" }}
+                    />
+                  ) : (
+                    <div className="text-slate-400 text-sm">加载中…</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-slate-500 text-sm">点击左侧查看详情。</div>
