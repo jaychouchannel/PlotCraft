@@ -9,6 +9,9 @@ export default function HistoryPage() {
   const [items, setItems] = useState<GenerationRecord[]>([]);
   const [active, setActive] = useState<GenerationRecord | null>(null);
   const [msg, setMsg] = useState("");
+  const [svgContent, setSvgContent] = useState<string | null>(null);
+  const [svgLoading, setSvgLoading] = useState(false);
+  const [svgError, setSvgError] = useState("");
 
   async function load() {
     try {
@@ -21,16 +24,33 @@ export default function HistoryPage() {
     load();
   }, []);
 
+  async function selectRecord(r: GenerationRecord) {
+    setActive(r);
+    setSvgContent(null);
+    setSvgError("");
+    setSvgLoading(true);
+    try {
+      const result = await api.getGenerationSvg(r.id);
+      setSvgContent(result.svg || null);
+    } catch (e) {
+      setSvgError("SVG 加载失败：" + (e as Error).message);
+    } finally {
+      setSvgLoading(false);
+    }
+  }
+
   async function clearAll() {
     if (!confirm("清空全部历史？")) return;
     await api.clearHistory();
     setItems([]);
     setActive(null);
+    setSvgContent(null);
   }
 
   async function remove(id: number) {
     await api.deleteHistory(id);
     setActive(null);
+    setSvgContent(null);
     await load();
   }
 
@@ -52,7 +72,7 @@ export default function HistoryPage() {
             items.map((r) => (
               <li
                 key={r.id}
-                onClick={() => setActive(r)}
+                onClick={() => selectRecord(r)}
                 className={`p-3 border rounded cursor-pointer text-sm ${
                   active?.id === r.id ? "bg-slate-100 border-slate-400" : "hover:bg-slate-50"
                 }`}
@@ -103,6 +123,27 @@ export default function HistoryPage() {
                 extensions={[python()]}
                 editable={false}
               />
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold text-sm">SVG 预览</div>
+              </div>
+              {svgError && (
+                <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded p-2 mb-2">{svgError}</div>
+              )}
+              <div className="border border-slate-200 rounded bg-slate-50 flex items-center justify-center min-h-[320px] p-3">
+                {svgLoading ? (
+                  <div className="text-slate-400 text-sm">SVG 加载中…</div>
+                ) : svgContent ? (
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    dangerouslySetInnerHTML={{ __html: svgContent }}
+                    style={{ maxHeight: "70vh" }}
+                  />
+                ) : (
+                  <div className="text-slate-400 text-sm">暂无 SVG 内容</div>
+                )}
+              </div>
             </div>
           </div>
         ) : (
