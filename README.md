@@ -292,7 +292,7 @@ The figures below were generated entirely by PlotCraft — natural language in, 
 
 ## License
 
-This repository does not currently declare an open-source license. Until a LICENSE file is added, all rights are reserved by the author by default. You may refer to the code for reference, but please contact the author for permission before redistribution, derivative work, or commercial use.
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details. You are free to use, modify, and distribute this software, provided the copyright notice and license text are included.
 
 ---
 

@@ -5,3 +5,6 @@ backend/.env
 *.pyc
 __pycache__/
 .vite/
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -118,6 +119,6 @@ async def seed_templates_if_empty() -> int:
             )
             n += 1
         except Exception as exc:
-            print(f"[seed] 跳过 {fp.name}: {exc}")
+            logging.warning("跳过模板种子 %s: %s", fp.name, exc)
     await db.commit()
     return n

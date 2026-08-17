@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ModelConfig, ModelConfigInput } from "../lib/api";
 import { api } from "../lib/api";
 
@@ -37,7 +37,10 @@ export default function ModelConfigPage() {
   }
 
   // 第一次进入时加载
-  if (loading === false && models.length === 0 && !msg) load();
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function reset() {
     setEditing({ ...empty });
