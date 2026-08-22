@@ -99,20 +99,19 @@ async def generate(body: GenerateRequest, request: Request) -> GenerateResponse:
     status = "code_only"
     error = ""
     if body.render:
-        # 沙箱执行期间客户端断开 → 不再写历史
+        # 沙箱执行期间客户端断开 → 不再写历史。
+        # 注意：不能把 request.is_disconnected() 与沙箱任务放进同一个
+        # asyncio.wait(FIRST_COMPLETED) 里竞速——Starlette 的 is_disconnected()
+        # 是非阻塞探测，连接正常时也会立即返回 False 并率先完成，导致沙箱
+        # 任务总被误取消（所有渲染请求都会返回"执行被取消"）。
+        # 这里改为等待沙箱任务本身，期间轮询断连状态。
         sandbox_task = asyncio.create_task(execute_code(code))
-        disconnect_task = asyncio.create_task(request.is_disconnected())
-        done, pending = await asyncio.wait(
-            {sandbox_task, disconnect_task}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for t in pending:
-            t.cancel()
-        if disconnect_task in done and disconnect_task.result():
-            raise ClientDisconnected()
-        if sandbox_task in done:
-            svg, _path, err = sandbox_task.result()
-        else:
-            svg, _path, err = "", "", "执行被取消"
+        while not sandbox_task.done():
+            if await request.is_disconnected():
+                sandbox_task.cancel()
+                raise ClientDisconnected()
+            await asyncio.sleep(0.25)
+        svg, _path, err = sandbox_task.result()
         if err:
             status = "error"
             error = err
