@@ -37,8 +37,7 @@ _FORBIDDEN_ATTR_PATTERNS = (
     re.compile(r"^on", re.IGNORECASE),  # onclick onmouseover 等
 )
 
-# xlink/href 不允许 javascript:、data:、外部 URL（只允许同文档内引用 #id）
-_HREF_BAD = re.compile(r"^\s*(javascript|data|https?|file|ftp):", re.IGNORECASE)
+# xlink/href 只允许同文档内引用（#id）；javascript:/data:/外部 URL 一律删除
 
 
 def sanitize_svg(svg: str) -> str:
@@ -55,6 +54,12 @@ def sanitize_svg(svg: str) -> str:
     return ET.tostring(root, encoding="unicode")
 
 
+def _attr_local_name(name: str) -> str:
+    # ET 用 {namespace}local 形式表示带命名空间的属性，与 _strip_tag 同理
+    # 取 local 部分做白名单/危险值判断，否则 xlink:href 永远匹配不上。
+    return name.split("}", 1)[1] if "}" in name else name
+
+
 def _walk_strip(elem: ET.Element) -> None:
     # 1. 删除不在白名单的子元素
     for child in list(elem):
@@ -63,9 +68,9 @@ def _walk_strip(elem: ET.Element) -> None:
         else:
             _walk_strip(child)
 
-    # 2. 清洗属性
+    # 2. 清洗属性（按去命名空间后的 local 名判断，删除时用原始键名）
     for name in list(elem.attrib.keys()):
-        lc = name.lower()
+        lc = _attr_local_name(name).lower()
         if any(p.match(lc) for p in _FORBIDDEN_ATTR_PATTERNS):
             del elem.attrib[name]
             continue
@@ -73,14 +78,17 @@ def _walk_strip(elem: ET.Element) -> None:
         if not any(lc == p or lc.startswith(p) for p in _ALLOWED_ATTR_PREFIXES):
             del elem.attrib[name]
             continue
-        # href / xlink:href 内容检查
+        # href / xlink:href 内容检查：只保留同文档引用（#id），
+        # javascript:/data:/外部 URL 一律删除
         if lc.endswith(":href") or lc == "href":
             val = elem.attrib[name].strip()
             if val.startswith("#"):
                 continue  # 同文档引用，安全
-            if _HREF_BAD.match(val):
-                del elem.attrib[name]
-                continue
+            del elem.attrib[name]
+
+    # 3. <style> 文本剥离 @import 外部导入（CSS 内联 url() 场景极少，暂不处理）
+    if _strip_tag(elem.tag) == "style" and elem.text:
+        elem.text = re.sub(r"@import[^;]*;?", "", elem.text, flags=re.IGNORECASE)
 
 
 def _strip_tag(tag: str) -> str:
