@@ -45,7 +45,8 @@ export interface GenerateResponse {
 
 export interface GenerationRecord {
   id: number;
-  model_id: number;
+  // 模型配置被删除后为 null（ON DELETE SET NULL）
+  model_id: number | null;
   template_id: number | null;
   user_input: string;
   generated_code: string;

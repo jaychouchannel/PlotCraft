@@ -67,7 +67,8 @@ class RenderRequest(BaseModel):
 
 class GenerationRecord(BaseModel):
     id: int
-    model_id: int
+    # 删除模型配置后 ON DELETE SET NULL 会留下 NULL
+    model_id: int | None = None
     template_id: int | None
     user_input: str
     generated_code: str

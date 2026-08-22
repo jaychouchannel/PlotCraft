@@ -50,7 +50,9 @@ async def _init_tables(db: aiosqlite.Connection):
 
         CREATE TABLE IF NOT EXISTS generations (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            model_id         INTEGER NOT NULL REFERENCES model_configs(id) ON DELETE SET NULL,
+            -- 可空：ON DELETE SET NULL 与 NOT NULL 互相矛盾，会让
+            -- "删除已被引用的模型配置" 必然触发 IntegrityError(500)
+            model_id         INTEGER REFERENCES model_configs(id) ON DELETE SET NULL,
             template_id      INTEGER REFERENCES templates(id) ON DELETE SET NULL,
             user_input       TEXT    NOT NULL DEFAULT '',
             generated_code   TEXT    NOT NULL DEFAULT '',
