@@ -45,8 +45,11 @@ def _build_export_hook(formats: tuple[str, ...]) -> str:
 # --- PlotCraft: 多格式导出 hook ---
 try:
     import matplotlib.pyplot as _pc_plt
-    _pc_fig = _pc_plt.gcf()
-    if _pc_fig.get_size_inches().sum() > 0:
+    # 仅当脚本仍留有打开的 figure 时才导出。plt.close() 之后 gcf() 会凭空
+    # 新建一张空白画布，旧的 get_size_inches().sum() > 0 判断挡不住它
+    # （默认 6.4x4.8，和恒大于 0），会用空白图覆盖脚本自己保存的 output.svg。
+    if _pc_plt.get_fignums():
+        _pc_fig = _pc_plt.gcf()
 {saves_block}
 except Exception:
     pass
