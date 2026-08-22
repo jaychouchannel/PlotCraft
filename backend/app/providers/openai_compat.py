@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 import httpx
@@ -47,27 +48,33 @@ class OpenAICompatProvider(Provider):
             raise RuntimeError(f"无法解析 LLM 响应: {payload_str}") from exc
 
 
+_LANG_TAG_LINE_RE = re.compile(r"^\s*python\d*\s*$", re.IGNORECASE)
+
+
 def extract_code_block(text: str) -> str:
     """从 LLM 响应中剥离 ```python``` 代码块，返回纯代码。"""
+    text = text.strip()
     if "```" not in text:
-        return text.strip()
+        return text
     parts = text.split("```")
-    for i, part in enumerate(parts):
+    # 只有奇数段（围栏之间）才是代码；偶数段是围栏外的散文，
+    # 旧实现连散文一起扫描，会把「本方案使用 matplotlib...」当成代码返回。
+    fenced = parts[1::2]
+    cleaned: list[str] = []
+    for part in fenced:
         stripped = part.strip()
         if not stripped:
             continue
-        # 跳过开头的语言标识（python / ```python）
-        if stripped.startswith(("python", "Python")):
-            stripped = stripped[len("python"):].lstrip()
-        # 取第一个非空代码块（通常是 2*i 奇数索引，但保险起见扫所有）
-        if any(kw in stripped for kw in ("import ", "matplotlib", "plt.", "# ")):
-            return stripped
-    # 兜底：把所有 ``` 之间的内容拼起来
-    code_segments = []
-    for i, part in enumerate(parts):
-        if i % 2 == 1 and part.strip():
-            seg = part.strip()
-            if seg.startswith(("python", "Python")):
-                seg = seg.split("\n", 1)[-1] if "\n" in seg else ""
-            code_segments.append(seg)
-    return "\n".join(code_segments).strip() if code_segments else text.strip()
+        first, _, rest = stripped.partition("\n")
+        if _LANG_TAG_LINE_RE.match(first):
+            # 语言标识整行丢弃。不能按固定长度截断前缀——```python3 的
+            # "3" 会残留在代码首行造成 SyntaxError。
+            stripped = rest.strip()
+            if not stripped:
+                continue
+        cleaned.append(stripped)
+    # 优先返回首个像代码的段（沿用原关键词启发式），否则把围栏内容全部拼接
+    for seg in cleaned:
+        if any(kw in seg for kw in ("import ", "matplotlib", "plt.", "# ")):
+            return seg
+    return "\n".join(cleaned) or text
